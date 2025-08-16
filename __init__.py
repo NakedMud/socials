@@ -17,4 +17,4 @@ for fl in os.listdir(__path__[0]):
 
 # import all of our modules so they can register relevant mud settings and data
 for module in __all__:
-    exec "import " + module
+    exec("import " + module)
