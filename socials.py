@@ -34,9 +34,9 @@ Description of module concepts:
  to_room_tgt is the message sent to the room when a target is provided
 
  adverbs and adjectives are default modifiers that can be suggested or
- applied to the emote through $M and $m (adjective: evil, adverb: evilly).
- If a player types an override it will override both $M and $m unless they
- clearly specify $M= and/or $m= for advanced usage.
+ applied to the emote through $X and $x (adjective: evil, adverb: evilly).
+ If a player types an override it will override both $X and $x unless they
+ clearly specify $X= and/or $x= for advanced usage.
 
  require_tgt is a boolean describing whether this emote forces the caller
  to have a target.
@@ -47,7 +47,7 @@ Description of module concepts:
 """
 from mudsys import add_cmd, remove_cmd
 from cmd_checks import chk_conscious, chk_can_move, chk_grounded, chk_supine
-import mud, storage, char, auxiliary, time, string, hooks, socedit, mudsys
+import mud, storage, char, auxiliary, time, string, hooks, mudsys
 
 # This stores all the socials themselves, before unlinking
 __social_table__ = { }
@@ -155,11 +155,18 @@ class Social:
         self.__require_tgt__ = val
         return self.__require_tgt__
     def set_min_pos(self, val):
-        if val in socedit.Position.items():
+        import movement
+        # Check if val is a valid position index (0-4)
+        if isinstance(val, int) and 0 <= val < len(movement.positions):
             self.__min_pos__ = val
+        elif val in movement.positions:
+            # If they passed a string, convert to index
+            self.__min_pos__ = movement.positions.index(val)
         return self.__min_pos__
     def set_max_pos(self, val):
-        if val in socedit.Position.items():
+        import movement  
+        # Check if val is a valid position (either string or index)
+        if val in movement.positions or (isinstance(val, int) and 0 <= val < len(movement.positions)):
             self.__max_pos__ = val
         return self.__max_pos__
 
@@ -185,15 +192,14 @@ def link_social(new_cmd, old_cmd, save=True):
     # add the command to the system
     add_cmd(new_cmd, None, cmd_social, "player", False)
     # this needs to be rewritten
-    if social_data.get_min_pos == "sitting":
+    if social_data.get_min_pos() == "sitting":
         mudsys.add_cmd_check(new_cmd, chk_conscious)
-    elif social_data.get_min_pos == "standing":
+    elif social_data.get_min_pos() == "standing":
         mudsys.add_cmd_check(new_cmd, chk_can_move)
-    elif social_data.get_max_pos == "standing":
+    elif social_data.get_max_pos() == "standing":
         mudsys.add_cmd_check(new_cmd, chk_grounded)
-    elif social_data.get_max_pos == "sitting":
+    elif social_data.get_max_pos() == "sitting":
         mudsys.add_cmd_check(new_cmd, chk_supine)
-
 
     if save is True:
         save_socials()
@@ -218,7 +224,7 @@ def unlink_social(social_cmd, save=True):
                 social_data.set_cmds(','.join(result))
                 __social_table__[social_link] = social_data
             else:
-                __socials__[social_cmd]
+                del __socials__[social_cmd]  # Fixed: was trying to use as index
 
         if save is True:
             save_socials()
@@ -229,13 +235,13 @@ def add_social(social_data, save=True):
     for res in result:
         unlink_social(res)
         add_cmd(res, None, cmd_social, "player", False)
-        if social_data.get_min_pos == "sitting":
+        if social_data.get_min_pos() == "sitting":
             mudsys.add_cmd_check(res, chk_conscious)
-        elif social_data.get_min_pos == "standing":
+        elif social_data.get_min_pos() == "standing":
             mudsys.add_cmd_check(res, chk_can_move)
-        elif social_data.get_max_pos == "standing":
+        elif social_data.get_max_pos() == "standing":
             mudsys.add_cmd_check(res, chk_grounded)
-        elif social_data.get_max_pos == "sitting":
+        elif social_data.get_max_pos() == "sitting":
             mudsys.add_cmd_check(res, chk_supine)
         __socials__[res] = cmds
     __social_table__[cmds] = social_data
@@ -254,7 +260,7 @@ def save_socials():
     socials = storage.StorageList()
     set.storeList("socials", socials)
 
-    for cmd, data in __social_table__.iteritems():
+    for cmd, data in __social_table__.items():  # Fixed: iteritems() -> items()
         one_set = data.store()
         socials.add(one_set)
 
@@ -334,7 +340,7 @@ def cmd_socials(ch, cmd, arg):
 
 
 def cmd_soclink(ch, cmd, arg):
-    if arg is None or arg is "":
+    if arg is None or arg == "":  # Fixed: is "" syntax
         ch.send("Link which social to which?")
         return
 
@@ -349,86 +355,143 @@ def cmd_soclink(ch, cmd, arg):
     if social_data is None:
         ch.send("No social exists for %s" % arg)
 
-    link_social(new_soc, arg);
+    link_social(new_soc, arg)
     ch.send("%s is now linked to %s" % (new_soc, arg))
 
 def cmd_socunlink(ch, cmd, arg):
-    if arg is None or arg is "":
+    if arg is None or arg == "":
         ch.send("Unlink which social?")
-        return
-
-    social_data = get_social(arg)
-    if social_data is None:
-        ch.send("No social exists for %s." % arg)
         return
 
     unlink_social(arg)
     ch.send("The %s social was unlinked." % arg)
     mud.log_string("%s unlinked the social %s." % (ch.name, arg))
 
+def process_social_message(msg, modifier, data):
+    """Helper function to process social message with proper $X/$x replacement"""
+    if not msg:
+        return msg
+    
+    # Replace $x with adjective (always from social data)
+    if "$x" in msg and data.get_adjective():
+        msg = msg.replace("$x", data.get_adjective())
+    
+    # Replace $X with modifier (user provided) or default adverb
+    if "$X" in msg:
+        if modifier:
+            msg = msg.replace("$X", modifier)
+        elif data.get_adverb():
+            msg = msg.replace("$X", data.get_adverb())
+    
+    return msg
+
+
 # One generic command for handling socials. Does table lookup on all of
 # the existing socials and executes the proper one.
 def cmd_social(ch, cmd, arg):
     data = get_social(cmd)
-    # If they used a phrasal or adjective/adverb then this will be 2 length
-    # otherwise it will be one length.
+    
+    # Parse arguments to extract modifier and target
+    # Social syntax supports two formats:
+    #   1. Explicit: "modifier at target" (e.g., "grin evilly at mysty")
+    #   2. Implicit: "modifier target" (e.g., "grin evilly mysty")
+    
     args = arg.split(" at ", 1)
-    has_modifier = True if len(args) == 2 else False
-
+    has_explicit_at = len(args) >= 2
+    
+    if has_explicit_at:
+        # Format: "modifier at target"
+        # Everything before " at " becomes the modifier
+        # Everything after " at " becomes the target
+        modifier = args[0].strip()
+        target_name = args[1].strip()
+    else:
+        # Format: "modifier target" or single word or empty
+        # Parse by splitting on spaces and using positional logic
+        words = arg.strip().split()
+        
+        if len(words) >= 2:
+            # Multiple words: "very evilly mysty" -> modifier="very evilly", target="mysty"
+            # All words except the last become the modifier
+            # Last word becomes the target to search for
+            modifier = " ".join(words[:-1])
+            target_name = words[-1]
+        elif len(words) == 1:
+            # Single word: "mysty" or "evilly"
+            # Try as target first, fallback to modifier if target not found
+            modifier = ""
+            target_name = words[0]
+        else:
+            # Empty command: "grin"
+            # No modifier, no target - will use social defaults
+            modifier = ""
+            target_name = ""
+    
     # does the social exist? Do we have a problem? DO WE?
     if data:
-        if has_modifier is True:
-            tgt, type = mud.generic_find(ch, arg, "all", "immediate", False)
-            if tgt is None or type != "char":
-                ch.send("That individual does not seem to be here.")
-                return
-        else:
-            tgt, type = mud.generic_find(ch, arg, "all", "immediate", False)
+        # Search for target if we have a target name
+        tgt = None
+        type = None
+        if target_name:
+            try:
+                tgt, type = mud.generic_find(ch, target_name, "all", "immediate", False)
+            except UnicodeDecodeError:
+                # mud.generic_find failed due to encoding issues, treat as no target found
+                tgt = None
+                type = None
+            
+        # If we found no target, handle fallback logic
+        if tgt is None and not has_explicit_at:
+            if len(arg.strip().split()) == 1:
+                # Single word that wasn't found as target - treat as modifier
+                modifier = arg.strip()
+                target_name = ""
+            # For multi-word cases, modifier and target_name are already set correctly
+        elif tgt is not None and type != "char":
+            # Found something but it's not a character
+            ch.send("That individual does not seem to be here.")
+            return
+
+        # Set default modifier if no modifier provided but adverb exists
+        # This happens AFTER fallback logic so user modifiers take precedence
+        if not modifier and data.get_adverb():
+            modifier = data.get_adverb()
 
         # No target was supplied, the emote is to ourselves.
         if tgt is None:
             if data.get_to_char_notgt():
-                mud.message(ch, None, None, None, True, "to_char", "%s" % (
-                            data.get_to_char_notgt() if has_modifier == False
-                            else string.replace(data.get_to_char_notgt(), "$M", arg)))
+                msg = process_social_message(data.get_to_char_notgt(), modifier, data)
+                mud.message(ch, None, None, None, True, "to_char", msg)
             if data.get_to_room_notgt():
-                mud.message(ch, None, None, None, True, "to_room", "%s" % (
-                            data.get_to_room_notgt() if has_modifier == False
-                            else string.replace(data.get_to_room_notgt(), "$M", arg)))
+                msg = process_social_message(data.get_to_room_notgt(), modifier, data)
+                mud.message(ch, None, None, None, True, "to_room", msg)
             return
         # a target was supplied and it is us
         elif ch == tgt:
             if data.get_to_char_self():
-                mud.message(ch, None, None, None, True, "to_char",
-                            data.get_to_char_self() if has_modifier else
-                            string.replace(data.get_to_char_self(), "$M", args[0]))
+                msg = process_social_message(data.get_to_char_self(), modifier, data)
+                mud.message(ch, None, None, None, True, "to_char", msg)
             elif data.get_to_char_notgt():
-                mud.message(ch, None, None, None, True, "to_char",
-                        data.get_to_char_notgt() if has_modifier == False
-            else string.replace(data.get_to_char_notgt(), "$M", args[0]))
+                msg = process_social_message(data.get_to_char_notgt(), modifier, data)
+                mud.message(ch, None, None, None, True, "to_char", msg)
             if data.get_to_room_self():
-                mud.message(ch, None, None, None, True, "to_room",
-                        data.get_to_room_self() if has_modifier == False
-                        else string.replace(data.get_to_room_self(), "$M", args[0]))
+                msg = process_social_message(data.get_to_room_self(), modifier, data)
+                mud.message(ch, None, None, None, True, "to_room", msg)
             elif data.get_to_room_notgt():
-                mud.message(ch, None, None, None, True, "to_room",
-                            data.get_to_room_notgt() if has_modifier == False
-                            else string.replace(data.get_to_room_notgt(), "$M", args[0]))
+                msg = process_social_message(data.get_to_room_notgt(), modifier, data)
+                mud.message(ch, None, None, None, True, "to_room", msg)
             return
         # a target was supplied and it is not us
         else:
             if data.get_to_char_tgt():
-                mud.message(ch, tgt, None, None, True, "to_char",
-                    data.get_to_char_tgt() if has_modifier == False
-                    else string.replace(data.get_to_char_tgt(), "$M", args[0]))
+                msg = process_social_message(data.get_to_char_tgt(), modifier, data)
+                mud.message(ch, tgt, None, None, True, "to_char", msg)
             if data.get_to_vict_tgt():
-                mud.message(ch, tgt, None, None, True, "to_char",
-                        data.get_to_vict_tgt() if has_modifier == False
-                        else string.replace(data.get_to_vict_tgt(), "$M", args[0]))
+                msg = process_social_message(data.get_to_vict_tgt(), modifier, data)
+                mud.message(ch, tgt, None, None, True, "to_vict", msg)
             if data.get_to_room_tgt():
-                mud.message(ch, tgt, None, None, True, "to_room",
-                            data.get_to_room_tgt() if has_modifier == False
-                            else string.replace(data.get_to_room_tgt(), "$M", args[0]))
+                msg = process_social_message(data.get_to_room_tgt(), modifier, data)
+                mud.message(ch, tgt, None, None, True, "to_room", msg)
     else:
         mud.log_string("ERROR: %s tried social, %s, but no such social exists!" % (ch.name, cmd))
     return

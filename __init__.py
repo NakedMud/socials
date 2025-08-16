@@ -7,6 +7,7 @@ to express such an emote, they can simply use one of these simple commands
 to perform a pre-made emote.
 """
 import os
+import importlib
 
 __all__ = [ ]
 
@@ -17,4 +18,4 @@ for fl in os.listdir(__path__[0]):
 
 # import all of our modules so they can register relevant mud settings and data
 for module in __all__:
-    exec("import " + module)
+    importlib.import_module('.' + module, package=__name__)

@@ -4,7 +4,6 @@
 """
 import olc
 from enum import Enum
-from socials import add_social, save_social, get_social, Social
 from mudsys import cmd_exists, add_cmd
 
 class Socedit(Enum):
@@ -108,14 +107,14 @@ def socedit_chooser(sock, social, option):
         return Socedit.require_tgt.value
     elif option == '11':
         sock.send("{gValid Positions:")
-        for name, member in Position.getMembers().items():
-            sock.send("  {c%%2d{y) {g%%-%ds%%s" % member.value, name)
+        for name, member in Position.__members__.items():
+            sock.send("  {c%2d{y) {g%-15s" % (member.value, name))
         sock.send("Pick a minimum position: ")
         return Socedit.min_pos.value
     elif option == '12':
         sock.send("{gValid Positions:")
-        for name, member in Position.getMembers().items():
-            sock.send("  {c%%2d{y) {g%%-%ds%%s" % member.value, name)
+        for name, member in Position.__members__.items():
+            sock.send("  {c%2d{y) {g%-15s" % (member.value, name))
         sock.send("Pick a maximum position: ")
         return Socedit.max_pos.value
     else:
@@ -170,7 +169,7 @@ def socedit_parser(sock, social, choice, arg):
         except:
             return False
 
-        x = social.set_min_pos(val)
+        x = social.set_max_pos(val)  # Fixed: was set_min_pos
         if x == val:
             return True
         return False
@@ -184,6 +183,7 @@ def cmd_socedit(ch, cmd, arg):
 
     syntax: socedit <social name>
     """
+    from .socials import add_social, save_social, get_social, Social
     if arg == '' or arg is None:
         ch.send("Which social are you trying to edit?")
         return
