@@ -53,8 +53,36 @@ import mud, storage, char, auxiliary, time, string, hooks, mudsys
 __social_table__ = { }
 # This stores all the socials after unlinking
 __socials__ = { }
+__socials_file__ = "misc/socials"
 
-__socials_file__ = "../lib/misc/socials"
+def ensure_socials_file():
+    """Ensure socials file exists, copy from default if not"""
+    import os
+    
+    if not os.path.exists(__socials_file__):
+        # Get the directory where this module is located
+        module_dir = os.path.dirname(__file__)
+        default_socials = os.path.join(module_dir, "default.socials")
+        
+        if os.path.exists(default_socials):
+            # Create misc directory if it doesn't exist
+            os.makedirs(os.path.dirname(__socials_file__), exist_ok=True)
+            
+            # Manual file copy - create file directly since we're in mudlib root
+            try:
+                with open(default_socials, 'r') as src:
+                    content = src.read()
+                # Write directly to file - we're already in mudlib directory
+                with open(__socials_file__, 'w') as dst:
+                    dst.write(content)
+                print(f"Created {__socials_file__} from default template")
+            except Exception as e:
+                print(f"Error creating socials file: {e}")
+        else:
+            print(f"Warning: Neither {__socials_file__} nor {default_socials} exists")
+
+# Initialize socials file on module load
+ensure_socials_file()
 
 class Social:
     def __init__(self, cmds = "", to_char_notgt = "", to_room_notgt = "", to_char_self = "",
