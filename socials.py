@@ -50,36 +50,36 @@ from cmd_checks import chk_conscious, chk_can_move, chk_grounded, chk_supine
 import mud, storage, char, auxiliary, time, string, hooks, mudsys
 
 # This stores all the socials themselves, before unlinking
-__social_table__ = { }
+social_table = { }
 # This stores all the socials after unlinking
-__socials__ = { }
-__socials_file__ = "misc/socials"
+socials = { }
+socials_file = "misc/socials"
 
 def ensure_socials_file():
     """Ensure socials file exists, copy from default if not"""
     import os
     
-    if not os.path.exists(__socials_file__):
+    if not os.path.exists(socials_file):
         # Get the directory where this module is located
         module_dir = os.path.dirname(__file__)
         default_socials = os.path.join(module_dir, "default.socials")
         
         if os.path.exists(default_socials):
             # Create misc directory if it doesn't exist
-            os.makedirs(os.path.dirname(__socials_file__), exist_ok=True)
+            os.makedirs(os.path.dirname(socials_file), exist_ok=True)
             
             # Manual file copy - create file directly since we're in mudlib root
             try:
                 with open(default_socials, 'r') as src:
                     content = src.read()
                 # Write directly to file - we're already in mudlib directory
-                with open(__socials_file__, 'w') as dst:
+                with open(socials_file, 'w') as dst:
                     dst.write(content)
-                print(f"Created {__socials_file__} from default template")
+                print(f"Created {socials_file} from default template")
             except Exception as e:
                 print(f"Error creating socials file: {e}")
         else:
-            print(f"Warning: Neither {__socials_file__} nor {default_socials} exists")
+            print(f"Warning: Neither {socials_file} nor {default_socials} exists")
 
 # Initialize socials file on module load
 ensure_socials_file()
@@ -90,116 +90,110 @@ class Social:
                  adverb = "", adjective = "", require_tgt = "", min_pos = "", max_pos = "",
                  storeSet = None):
         if not storeSet == None:
-            self.__cmds__ = storeSet.readString("cmds")
-            self.__to_char_notgt__ = storeSet.readString("to_char_notgt")
-            self.__to_room_notgt__ = storeSet.readString("to_room_notgt")
-            self.__to_char_self__ = storeSet.readString("to_char_self")
-            self.__to_room_self__ = storeSet.readString("to_room_self")
-            self.__to_char_tgt__ = storeSet.readString("to_char_tgt")
-            self.__to_vict_tgt__ = storeSet.readString("to_vict_tgt")
-            self.__to_room_tgt__ = storeSet.readString("to_room_tgt")
-            self.__adverb__ = storeSet.readString("adverb")
-            self.__adjective__ = storeSet.readString("adjective")
-            self.__require_tgt__ = storeSet.readString("require_tgt")
-            self.__min_pos__ = storeSet.readString("min_pos")
-            self.__max_pos__ = storeSet.readString("max_pos")
+            self.cmds = storeSet.readString("cmds")
+            self.to_char_notgt = storeSet.readString("to_char_notgt")
+            self.to_room_notgt = storeSet.readString("to_room_notgt")
+            self.to_char_self = storeSet.readString("to_char_self")
+            self.to_room_self = storeSet.readString("to_room_self")
+            self.to_char_tgt = storeSet.readString("to_char_tgt")
+            self.to_vict_tgt = storeSet.readString("to_vict_tgt")
+            self.to_room_tgt = storeSet.readString("to_room_tgt")
+            self.adverb = storeSet.readString("adverb")
+            self.adjective = storeSet.readString("adjective")
+            self.require_tgt = storeSet.readString("require_tgt")
+            self.min_pos = storeSet.readString("min_pos")
+            self.max_pos = storeSet.readString("max_pos")
         else:
-            self.__cmds__ = cmds
-            self.__to_char_notgt__ = to_char_notgt
-            self.__to_room_notgt__ = to_room_notgt
-            self.__to_char_self__ = to_char_self
-            self.__to_room_self__ = to_room_self
-            self.__to_char_tgt__ = to_char_tgt
-            self.__to_vict_tgt__ = to_vict_tgt
-            self.__to_room_tgt__ = to_room_tgt
-            self.__adverb__ = adverb
-            self.__adjective__ = adjective
-            self.__require_tgt__ = require_tgt
-            self.__min_pos__ = min_pos
-            self.__max_pos__ = max_pos
+            self.cmds = cmds
+            self.to_char_notgt = to_char_notgt
+            self.to_room_notgt = to_room_notgt
+            self.to_char_self = to_char_self
+            self.to_room_self = to_room_self
+            self.to_char_tgt = to_char_tgt
+            self.to_vict_tgt = to_vict_tgt
+            self.to_room_tgt = to_room_tgt
+            self.adverb = adverb
+            self.adjective = adjective
+            self.require_tgt = require_tgt
+            self.min_pos = min_pos
+            self.max_pos = max_pos
 
     def store(self):
         set = storage.StorageSet()
-        set.storeString("cmds",           self.__cmds__)
-        set.storeString("to_char_notgt",  self.__to_char_notgt__)
-        set.storeString("to_room_notgt",  self.__to_room_notgt__)
-        set.storeString("to_char_self",   self.__to_char_self__)
-        set.storeString("to_room_self",   self.__to_room_self__)
-        set.storeString("to_char_tgt",    self.__to_char_tgt__)
-        set.storeString("to_vict_tgt",    self.__to_vict_tgt__)
-        set.storeString("to_room_tgt",    self.__to_room_tgt__)
-        set.storeString("adjective",      self.__adjective__)
-        set.storeString("adverb",         self.__adverb__)
-        set.storeString("require_tgt",    self.__require_tgt__)
-        set.storeString("min_pos",        self.__min_pos__)
-        set.storeString("max_pos",        self.__max_pos__)
+        set.storeString("cmds",           self.cmds)
+        set.storeString("to_char_notgt",  self.to_char_notgt)
+        set.storeString("to_room_notgt",  self.to_room_notgt)
+        set.storeString("to_char_self",   self.to_char_self)
+        set.storeString("to_room_self",   self.to_room_self)
+        set.storeString("to_char_tgt",    self.to_char_tgt)
+        set.storeString("to_vict_tgt",    self.to_vict_tgt)
+        set.storeString("to_room_tgt",    self.to_room_tgt)
+        set.storeString("adjective",      self.adjective)
+        set.storeString("adverb",         self.adverb)
+        set.storeString("require_tgt",    self.require_tgt)
+        set.storeString("min_pos",        self.min_pos)
+        set.storeString("max_pos",        self.max_pos)
         return set
 
-    def get_cmds(self): return self.__cmds__
-    def get_to_char_notgt(self): return self.__to_char_notgt__
-    def get_to_char_self(self): return self.__to_char_self__
-    def get_to_char_tgt(self): return self.__to_char_tgt__
-    def get_to_room_notgt(self): return self.__to_room_notgt__
-    def get_to_room_self(self): return self.__to_room_self__
-    def get_to_room_tgt(self): return self.__to_room_tgt__
-    def get_to_vict_tgt(self): return self.__to_vict_tgt__
-    def get_adverb(self): return self.__adverb__
-    def get_adjective(self): return self.__adjective__
-    def get_require_tgt(self): return self.__require_tgt__
-    def get_min_pos(self): return self.__min_pos__
-    def get_max_pos(self): return self.__max_pos__
+    def get_cmds(self): return self.cmds
+    def get_to_char_notgt(self): return self.to_char_notgt
+    def get_to_char_self(self): return self.to_char_self
+    def get_to_char_tgt(self): return self.to_char_tgt
+    def get_to_room_notgt(self): return self.to_room_notgt
+    def get_to_room_self(self): return self.to_room_self
+    def get_to_room_tgt(self): return self.to_room_tgt
+    def get_to_vict_tgt(self): return self.to_vict_tgt
+    def get_adverb(self): return self.adverb
+    def get_adjective(self): return self.adjective
+    def get_require_tgt(self): return self.require_tgt
+    def get_min_pos(self): return self.min_pos
+    def get_max_pos(self): return self.max_pos
 
     def set_cmds(self, val):
-        self.__cmds__ = val
-        return self.__cmds__
+        self.cmds = val
+        return self.cmds
     def set_to_char_notgt(self, val):
-        self.__to_char_notgt__ = val
-        return self.__to_char_notgt__
+        self.to_char_notgt = val
+        return self.to_char_notgt
     def set_to_char_self(self, val):
-        self.__to_char_self__ = val
-        return self.__to_char_self__
+        self.to_char_self = val
+        return self.to_char_self
     def set_to_char_tgt(self, val):
-        self.__to_char_tgt__ = val
-        return self.__to_char_tgt__
+        self.to_char_tgt = val
+        return self.to_char_tgt
     def set_to_room_notgt(self, val):
-        self.__to_room_notgt__ = val
-        return self.__to_room_notgt__
+        self.to_room_notgt = val
+        return self.to_room_notgt
     def set_to_room_self(self, val):
-        self.__to_room_self__ = val
-        return self.__to_room_self__
+        self.to_room_self = val
+        return self.to_room_self
     def set_to_room_tgt(self, val):
-        self.__to_room_tgt__ = val
-        return self.__to_room_tgt__
+        self.to_room_tgt = val
+        return self.to_room_tgt
     def set_to_vict_tgt(self, val):
-        self.__to_vict_tgt__ = val
-        return self.__to_vict_tgt__
+        self.to_vict_tgt = val
+        return self.to_vict_tgt
     def set_adverb(self, val):
-        self.__adverb__ = val
-        return self.__adverb__
+        self.adverb = val
+        return self.adverb
     def set_adjective(self, val):
-        self.__adjective__ = val
-        return self.__adjective__
+        self.adjective = val
+        return self.adjective
     def set_require_tgt(self, val):
-        self.__require_tgt__ = val
-        return self.__require_tgt__
+        self.require_tgt = val
+        return self.require_tgt
     def set_min_pos(self, val):
-        import movement
-        # Check if val is a valid position index (0-4)
-        if isinstance(val, int) and 0 <= val < len(movement.positions):
-            self.__min_pos__ = val
-        elif val in movement.positions:
-            # If they passed a string, convert to index
-            self.__min_pos__ = movement.positions.index(val)
-        return self.__min_pos__
+        self.min_pos = val
+        return self.min_pos
     def set_max_pos(self, val):
         import movement  
         # Check if val is a valid position (either string or index)
         if val in movement.positions or (isinstance(val, int) and 0 <= val < len(movement.positions)):
-            self.__max_pos__ = val
-        return self.__max_pos__
+            self.max_pos = val
+        return self.max_pos
 
 def link_social(new_cmd, old_cmd, save=True):
-    if old_cmd in __socials__.keys():
+    if old_cmd in socials.keys():
         unlink_social(new_cmd, save)
     social_data = get_social(old_cmd)
 
@@ -210,12 +204,12 @@ def link_social(new_cmd, old_cmd, save=True):
     # relink all the individual mappings
     new_cmds = ','.join(keywords)
     for k in keywords:
-        __socials__[k] = new_cmds
+        socials[k] = new_cmds
 
     # set the new hash, delete the old one and add the new
     social_data.set_cmds(new_cmds)
-    del __social_table__[cmds]
-    __social_table__[new_cmds] = social_data
+    del social_table[cmds]
+    social_table[new_cmds] = social_data
 
     # add the command to the system
     add_cmd(new_cmd, None, cmd_social, "player", False)
@@ -234,12 +228,12 @@ def link_social(new_cmd, old_cmd, save=True):
 
 
 def unlink_social(social_cmd, save=True):
-    if social_cmd not in __socials__.keys():
+    if social_cmd not in socials.keys():
         return
 
-    social_link = __socials__[social_cmd]
-    if social_link in __social_table__.keys():
-        social_data = __social_table__.pop(social_link)
+    social_link = socials[social_cmd]
+    if social_link in social_table.keys():
+        social_data = social_table.pop(social_link)
 
         if social_data is not None:
             cmds = social_data.get_cmds()
@@ -250,9 +244,9 @@ def unlink_social(social_cmd, save=True):
             # if there are still commands left re-add
             if len(result) > 0:
                 social_data.set_cmds(','.join(result))
-                __social_table__[social_link] = social_data
+                social_table[social_link] = social_data
             else:
-                del __socials__[social_cmd]  # Fixed: was trying to use as index
+                del socials[social_cmd]  # Fixed: was trying to use as index
 
         if save is True:
             save_socials()
@@ -271,15 +265,15 @@ def add_social(social_data, save=True):
             mudsys.add_cmd_check(res, chk_grounded)
         elif social_data.get_max_pos() == "sitting":
             mudsys.add_cmd_check(res, chk_supine)
-        __socials__[res] = cmds
-    __social_table__[cmds] = social_data
+        socials[res] = cmds
+    social_table[cmds] = social_data
     if save:
         save_socials()
 
 
 def get_social(social):
-    if social in __socials__:
-        return __social_table__[__socials__[social]]
+    if social in socials:
+        return social_table[socials[social]]
     return None
 
 
@@ -288,11 +282,11 @@ def save_socials():
     socials = storage.StorageList()
     set.storeList("socials", socials)
 
-    for cmd, data in __social_table__.items():  # Fixed: iteritems() -> items()
+    for cmd, data in social_table.items():  # Fixed: iteritems() -> items()
         one_set = data.store()
         socials.add(one_set)
 
-    set.write(__socials_file__)
+    set.write(socials_file)
     set.close()
     return
 
@@ -302,12 +296,12 @@ def save_social(social):
     return
 
 def load_socials():
-    storeSet = storage.StorageSet(__socials_file__)
+    storeSet = storage.StorageSet(socials_file)
     for social_set in storeSet.readList("socials").sets():
         social_data = Social(storeSet=social_set)
         cmds = social_data.get_cmds()
         result = [x.strip() for x in cmds.split(',')]
-        __social_table__[cmds] = social_data
+        social_table[cmds] = social_data
         for res in result:
             add_cmd(res, None, cmd_social, "player", False)
             if social_data.get_min_pos() == "sitting":
@@ -318,7 +312,7 @@ def load_socials():
                 mudsys.add_cmd_check(res, chk_grounded)
             elif social_data.get_max_pos() == "sitting":
                 mudsys.add_cmd_check(res, chk_supine)
-            __socials__[res] = cmds
+            socials[res] = cmds
     storeSet.close()
     return
 

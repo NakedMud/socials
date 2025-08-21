@@ -33,7 +33,7 @@ class Position(Enum):
     flying = 4
 
     def getMembers(self):
-        return __members__
+        return Position.__members__
 
 def socedit_menu(sock, social):
     """
